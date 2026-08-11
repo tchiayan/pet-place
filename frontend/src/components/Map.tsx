@@ -83,7 +83,7 @@ export default function Map({ places, userLocation, onMarkerClick, onBoundsChang
 
       // Read markerClusterGroup from window.L (where the plugin attached it)
       type LWithCluster = typeof L & {
-        markerClusterGroup: (opts?: object) => import("leaflet.markercluster").MarkerClusterGroup;
+        markerClusterGroup: (opts?: object) => import("leaflet").MarkerClusterGroup;
       };
       const cluster = (window as unknown as { L: LWithCluster }).L.markerClusterGroup({
         chunkedLoading: true,
