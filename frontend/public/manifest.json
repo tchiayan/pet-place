@@ -1,0 +1,33 @@
+{
+  "name": "Pet Place Malaysia",
+  "short_name": "Pet Place",
+  "description": "Find pet-friendly cafes, restaurants, attractions and stays across Malaysia",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f0fdf4",
+  "theme_color": "#16a34a",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["travel", "food", "lifestyle"],
+  "shortcuts": [
+    {
+      "name": "Find nearby",
+      "short_name": "Nearby",
+      "description": "Find pet-friendly places near you",
+      "url": "/?mode=nearby"
+    }
+  ]
+}
