@@ -32,7 +32,7 @@ type Callbacks = {
 export default function Map({ places, userLocation, onMarkerClick, onBoundsChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
-  const clusterRef = useRef<import("leaflet.markercluster").MarkerClusterGroup | null>(null);
+  const clusterRef = useRef<import("leaflet").MarkerClusterGroup | null>(null);
   const userMarkerRef = useRef<import("leaflet").Marker | null>(null);
   const cbRef = useRef<Callbacks>({ onMarkerClick, onBoundsChange });
   cbRef.current = { onMarkerClick, onBoundsChange };
