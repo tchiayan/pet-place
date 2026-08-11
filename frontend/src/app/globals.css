@@ -14,17 +14,3 @@ body,
   z-index: 0;
 }
 
-/* Safe area inset utilities for notched phones / iOS home indicator */
-:root {
-  --sab: env(safe-area-inset-bottom, 0px);
-  --sat: env(safe-area-inset-top, 0px);
-}
-
-.pb-safe {
-  padding-bottom: max(0.75rem, env(safe-area-inset-bottom, 0px));
-}
-
-.bottom-bar {
-  bottom: 0;
-  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
-}

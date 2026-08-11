@@ -110,7 +110,15 @@ export default function HomePage() {
       />
 
       {/* ── Top bar ── */}
-      <div className="absolute top-0 left-0 right-0 z-10 p-3 flex items-center gap-2">
+      <div
+        className="absolute top-0 left-0 right-0 z-10 flex items-center gap-2"
+        style={{
+          paddingTop: "max(0.75rem, env(safe-area-inset-top, 0.75rem))",
+          paddingBottom: "0.75rem",
+          paddingLeft: "max(0.75rem, env(safe-area-inset-left, 0.75rem))",
+          paddingRight: "max(0.75rem, env(safe-area-inset-right, 0.75rem))",
+        }}
+      >
         <div className="bg-brand-600 text-white rounded-xl p-2 shadow-md shrink-0">
           <PawPrint className="w-5 h-5" />
         </div>
@@ -131,9 +139,12 @@ export default function HomePage() {
         </button>
       </div>
 
-      {/* ── Filter panel ── */}
+      {/* ── Filter panel — positioned below the dynamic top bar ── */}
       {showFilters && (
-        <div className="absolute top-16 left-3 right-3 z-20 flex justify-center">
+        <div
+          className="absolute left-3 right-3 z-20 flex justify-center"
+          style={{ top: "calc(4.5rem + env(safe-area-inset-top, 0px))" }}
+        >
           <FilterPanel
             filters={filters}
             states={states}
@@ -144,7 +155,15 @@ export default function HomePage() {
       )}
 
       {/* ── Bottom action bar ── */}
-      <div className="bottom-bar absolute left-0 right-0 z-10 flex items-center justify-between px-4 pt-2">
+      <div
+        className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-between"
+        style={{
+          paddingBottom: "max(1rem, env(safe-area-inset-bottom, 1rem))",
+          paddingLeft: "max(1rem, env(safe-area-inset-left, 1rem))",
+          paddingRight: "max(1rem, env(safe-area-inset-right, 1rem))",
+          paddingTop: "0.5rem",
+        }}
+      >
         <button
           onClick={() => setShowSubmit(true)}
           className="flex items-center gap-1.5 bg-white border border-gray-200 shadow-lg rounded-full px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
@@ -169,7 +188,10 @@ export default function HomePage() {
 
       {/* ── Slide-up list ── */}
       {showList && (
-        <div className="absolute bottom-0 left-0 right-0 z-20 bg-white rounded-t-3xl shadow-2xl max-h-[65vh] flex flex-col pb-safe">
+        <div
+          className="absolute bottom-0 left-0 right-0 z-20 bg-white rounded-t-3xl shadow-2xl max-h-[65vh] flex flex-col"
+          style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))" }}
+        >
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <p className="font-semibold text-gray-900">{places.length} results</p>
             <button onClick={() => setShowList(false)} className="text-gray-400 hover:text-gray-600">
@@ -197,7 +219,10 @@ export default function HomePage() {
 
       {/* ── Selected place card — sits above the bottom bar ── */}
       {selected && (
-        <div className="absolute left-3 right-3 z-20" style={{ bottom: "calc(4.5rem + env(safe-area-inset-bottom, 0px))" }}>
+        <div
+          className="absolute left-3 right-3 z-20"
+          style={{ bottom: "calc(4.5rem + max(1rem, env(safe-area-inset-bottom, 1rem)))" }}
+        >
           <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
