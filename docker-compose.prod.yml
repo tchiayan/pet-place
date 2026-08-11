@@ -29,6 +29,8 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
       SECRET_KEY: ${SECRET_KEY}
+    volumes:
+      - ./data:/data:ro
     depends_on:
       db:
         condition: service_healthy

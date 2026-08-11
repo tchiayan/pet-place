@@ -1,5 +1,5 @@
 .PHONY: up down build migrate import import-no-geocode shell-backend shell-db logs \
-        prod-up prod-down prod-pull prod-migrate ssl-init ssl-renew
+        prod-up prod-down prod-pull prod-migrate prod-import prod-import-no-geocode ssl-init ssl-renew
 
 # Start all services
 up:
@@ -58,6 +58,15 @@ prod-pull:
 
 prod-migrate:
 	docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend alembic upgrade head
+
+prod-import:
+	docker compose -f docker-compose.prod.yml --env-file .env.prod \
+		exec -e GOOGLE_GEOCODING_API_KEY=$(GOOGLE_GEOCODING_API_KEY) \
+		backend python scripts/import_csv.py
+
+prod-import-no-geocode:
+	docker compose -f docker-compose.prod.yml --env-file .env.prod \
+		exec -e SKIP_GEOCODING=1 backend python scripts/import_csv.py
 
 # Issue SSL cert — run ONCE before prod-up, while port 80 is free.
 # Certbot opens port 80 itself (standalone mode); no nginx required.
