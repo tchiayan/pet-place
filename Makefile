@@ -1,5 +1,5 @@
 .PHONY: up down build migrate import import-no-geocode shell-backend shell-db logs \
-        prod-up prod-down prod-build prod-migrate ssl-init ssl-renew
+        prod-up prod-down prod-pull prod-migrate ssl-init ssl-renew
 
 # Start all services
 up:
@@ -50,8 +50,11 @@ prod-up:
 prod-down:
 	docker compose -f docker-compose.prod.yml down
 
-prod-build:
-	docker compose -f docker-compose.prod.yml --env-file .env.prod build
+# Pull latest images from GHCR and restart changed containers
+prod-pull:
+	docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+	docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --no-build --remove-orphans
+	docker image prune -f
 
 prod-migrate:
 	docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend alembic upgrade head
