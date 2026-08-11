@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Locate, X, PawPrint, Plus } from "lucide-react";
 import { api } from "@/lib/api";
 import type { Filters, Place } from "@/types/place";
-import type { Bounds } from "@/components/Map";
+import type { Bounds, MapHandle } from "@/components/Map";
 import PlaceCard from "@/components/PlaceCard";
 import SearchBar from "@/components/SearchBar";
 import FilterPanel from "@/components/FilterPanel";
@@ -28,6 +28,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [showList, setShowList] = useState(false);
 
+  const mapRef = useRef<MapHandle>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchPlaces = useCallback(
@@ -62,6 +63,10 @@ export default function HomePage() {
           });
         }
         setPlaces(result.items);
+        // Auto-fit map when a text search or nearby search returns results
+        if ((q || loc) && result.items.length > 0) {
+          setTimeout(() => mapRef.current?.fitPlaces(result.items), 50);
+        }
       } catch (err) {
         console.error("Failed to fetch places:", err);
       } finally {
@@ -97,6 +102,7 @@ export default function HomePage() {
   return (
     <main className="relative h-screen w-screen overflow-hidden">
       <Map
+        ref={mapRef}
         places={places}
         userLocation={userLocation}
         onMarkerClick={(p) => { setSelected(p); setShowList(false); }}
@@ -137,17 +143,16 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* ── Submit button (bottom-left) ── */}
-      <button
-        onClick={() => setShowSubmit(true)}
-        className="absolute bottom-6 left-4 z-10 flex items-center gap-1.5 bg-white border border-gray-200 shadow-lg rounded-full px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-      >
-        <Plus className="w-4 h-4 text-brand-600" />
-        Add a place
-      </button>
+      {/* ── Bottom action bar ── */}
+      <div className="bottom-bar absolute left-0 right-0 z-10 flex items-center justify-between px-4 pt-2">
+        <button
+          onClick={() => setShowSubmit(true)}
+          className="flex items-center gap-1.5 bg-white border border-gray-200 shadow-lg rounded-full px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          <Plus className="w-4 h-4 text-brand-600" />
+          Add a place
+        </button>
 
-      {/* ── Results count + list toggle (bottom-centre) ── */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
         {loading ? (
           <span className="bg-white shadow rounded-full px-4 py-2 text-sm text-gray-500">
             Searching…
@@ -164,7 +169,7 @@ export default function HomePage() {
 
       {/* ── Slide-up list ── */}
       {showList && (
-        <div className="absolute bottom-0 left-0 right-0 z-20 bg-white rounded-t-3xl shadow-2xl max-h-[60vh] flex flex-col">
+        <div className="absolute bottom-0 left-0 right-0 z-20 bg-white rounded-t-3xl shadow-2xl max-h-[65vh] flex flex-col pb-safe">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
             <p className="font-semibold text-gray-900">{places.length} results</p>
             <button onClick={() => setShowList(false)} className="text-gray-400 hover:text-gray-600">
@@ -173,15 +178,26 @@ export default function HomePage() {
           </div>
           <div className="overflow-y-auto p-3 flex flex-col gap-2">
             {places.map((p) => (
-              <PlaceCard key={p.id} place={p} compact onClick={() => { setSelected(p); setShowList(false); }} />
+              <PlaceCard
+                key={p.id}
+                place={p}
+                compact
+                onClick={() => {
+                  setSelected(p);
+                  setShowList(false);
+                  if (p.latitude && p.longitude) {
+                    mapRef.current?.flyTo(p.latitude, p.longitude);
+                  }
+                }}
+              />
             ))}
           </div>
         </div>
       )}
 
-      {/* ── Selected place card ── */}
+      {/* ── Selected place card — sits above the bottom bar ── */}
       {selected && (
-        <div className="absolute bottom-20 left-3 right-3 z-20">
+        <div className="absolute left-3 right-3 z-20" style={{ bottom: "calc(4.5rem + env(safe-area-inset-bottom, 0px))" }}>
           <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 import "leaflet.markercluster/dist/MarkerCluster.css";
 import "leaflet.markercluster/dist/MarkerCluster.Default.css";
@@ -16,6 +16,11 @@ export interface Bounds {
   west: number;
 }
 
+export interface MapHandle {
+  fitPlaces: (places: Place[]) => void;
+  flyTo: (lat: number, lng: number) => void;
+}
+
 interface Props {
   places: Place[];
   userLocation: [number, number] | null;
@@ -29,13 +34,38 @@ type Callbacks = {
   onBoundsChange: (b: Bounds) => void;
 };
 
-export default function Map({ places, userLocation, onMarkerClick, onBoundsChange }: Props) {
+const Map = forwardRef<MapHandle, Props>(function Map(
+  { places, userLocation, onMarkerClick, onBoundsChange },
+  ref
+) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("leaflet").Map | null>(null);
   const clusterRef = useRef<import("leaflet").MarkerClusterGroup | null>(null);
   const userMarkerRef = useRef<import("leaflet").Marker | null>(null);
   const cbRef = useRef<Callbacks>({ onMarkerClick, onBoundsChange });
   cbRef.current = { onMarkerClick, onBoundsChange };
+
+  useImperativeHandle(ref, () => ({
+    fitPlaces(ps) {
+      const map = mapRef.current;
+      if (!map) return;
+      const valid = ps.filter((p) => p.latitude != null && p.longitude != null);
+      if (!valid.length) return;
+      if (valid.length === 1) {
+        map.setView([valid[0].latitude!, valid[0].longitude!], 15, { animate: true });
+        return;
+      }
+      import("leaflet").then((L) => {
+        const bounds = L.latLngBounds(
+          valid.map((p) => [p.latitude!, p.longitude!] as [number, number])
+        );
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15, animate: true });
+      });
+    },
+    flyTo(lat, lng) {
+      mapRef.current?.setView([lat, lng], 16, { animate: true });
+    },
+  })); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Initialise map exactly once per mount
   useEffect(() => {
@@ -158,4 +188,6 @@ export default function Map({ places, userLocation, onMarkerClick, onBoundsChang
   }, [userLocation]);
 
   return <div ref={containerRef} className="h-full w-full" />;
-}
+});
+
+export default Map;

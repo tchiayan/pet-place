@@ -21,11 +21,9 @@ build:
 migrate:
 	docker compose exec backend alembic upgrade head
 
-# Geocode + import CSV into database
-# Set SKIP_GEOCODING=1 to skip geocoding (for testing)
+# Geocode + import CSV into database (key is read from .env via env_file in compose)
 import:
-	docker compose exec -e GOOGLE_GEOCODING_API_KEY=$(GOOGLE_GEOCODING_API_KEY) \
-		backend python scripts/import_csv.py
+	docker compose exec backend python scripts/import_csv.py
 
 # Import without geocoding (fast seed for local dev)
 import-no-geocode:
@@ -61,8 +59,7 @@ prod-migrate:
 
 prod-import:
 	docker compose -f docker-compose.prod.yml --env-file .env.prod \
-		exec -e GOOGLE_GEOCODING_API_KEY=$(GOOGLE_GEOCODING_API_KEY) \
-		backend python scripts/import_csv.py
+		exec backend python scripts/import_csv.py
 
 prod-import-no-geocode:
 	docker compose -f docker-compose.prod.yml --env-file .env.prod \
