@@ -1,5 +1,5 @@
 .PHONY: up down build migrate import import-no-geocode shell-backend shell-db logs \
-        prod-up prod-down prod-build prod-migrate ssl-init
+        prod-up prod-down prod-build prod-migrate ssl-init ssl-renew
 
 # Start all services
 up:
@@ -56,9 +56,21 @@ prod-build:
 prod-migrate:
 	docker compose -f docker-compose.prod.yml --env-file .env.prod exec backend alembic upgrade head
 
-# Issue SSL cert (run once after DNS points to this server)
-# Replace YOUR_DOMAIN and YOUR_EMAIL before running
+# Issue SSL cert — run ONCE before prod-up, while port 80 is free.
+# Certbot opens port 80 itself (standalone mode); no nginx required.
+# Usage: make ssl-init DOMAIN=your-domain.com EMAIL=you@example.com
 ssl-init:
-	docker compose -f docker-compose.prod.yml run --rm certbot certonly \
+	docker compose -f docker-compose.prod.yml --env-file .env.prod \
+		run --rm -p 80:80 certbot certonly \
+		--standalone \
+		-d $(DOMAIN) --email $(EMAIL) --agree-tos --no-eff-email
+	@echo "Certificate issued. Now run: make prod-up"
+
+# Renew SSL cert — run while the full prod stack is up (nginx serves the challenge).
+# Usage: make ssl-renew DOMAIN=your-domain.com EMAIL=you@example.com
+ssl-renew:
+	docker compose -f docker-compose.prod.yml --env-file .env.prod \
+		run --rm certbot certonly \
 		--webroot --webroot-path /var/www/certbot \
-		-d YOUR_DOMAIN --email YOUR_EMAIL --agree-tos --no-eff-email
+		-d $(DOMAIN) --email $(EMAIL) --agree-tos --no-eff-email --force-renewal
+	docker compose -f docker-compose.prod.yml --env-file .env.prod exec nginx nginx -s reload
