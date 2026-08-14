@@ -3,9 +3,11 @@ from geoalchemy2.functions import ST_DWithin, ST_GeogFromText
 from sqlalchemy import distinct, func, select
 from sqlalchemy.orm import Session
 
+from app.core.auth import require_admin
 from app.db.session import get_db
 from app.models.place import Place
-from app.schemas.place import AreaOut, PlaceListOut, PlaceOut
+from app.models.user import User
+from app.schemas.place import AreaOut, PlaceListOut, PlaceOut, PlaceUpdate
 
 router = APIRouter(prefix="/places", tags=["places"])
 
@@ -130,3 +132,33 @@ def get_place(place_id: int, db: Session = Depends(get_db)):
     if not place:
         raise HTTPException(status_code=404, detail="Place not found")
     return place
+
+
+@router.put("/{place_id}", response_model=PlaceOut)
+def update_place(
+    place_id: int,
+    body: PlaceUpdate,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    place = db.get(Place, place_id)
+    if not place:
+        raise HTTPException(status_code=404, detail="Place not found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(place, field, value)
+    db.commit()
+    db.refresh(place)
+    return place
+
+
+@router.delete("/{place_id}", status_code=204)
+def delete_place(
+    place_id: int,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    place = db.get(Place, place_id)
+    if not place:
+        raise HTTPException(status_code=404, detail="Place not found")
+    db.delete(place)
+    db.commit()

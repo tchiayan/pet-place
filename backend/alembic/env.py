@@ -16,6 +16,8 @@ if database_url:
 
 from app.db.session import Base  # noqa: E402
 import app.models.place  # noqa: E402, F401 — registers models with Base
+import app.models.user  # noqa: E402, F401
+import app.models.submission  # noqa: E402, F401
 
 target_metadata = Base.metadata
 

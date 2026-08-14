@@ -1,9 +1,10 @@
 "use client";
 
+import { SignInButton, SignedIn, SignedOut, UserButton, useAuth } from "@clerk/nextjs";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Locate, X, PawPrint, Plus } from "lucide-react";
-import { api } from "@/lib/api";
+import { Locate, X, PawPrint, Plus, ShieldCheck } from "lucide-react";
+import { api, type UserOut } from "@/lib/api";
 import type { Filters, Place } from "@/types/place";
 import type { Bounds, MapHandle } from "@/components/Map";
 import PlaceCard from "@/components/PlaceCard";
@@ -16,6 +17,8 @@ const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 const DEBOUNCE_MS = 400;
 
 export default function HomePage() {
+  const { getToken, isSignedIn } = useAuth();
+  const [appUser, setAppUser] = useState<UserOut | null>(null);
   const [places, setPlaces] = useState<Place[]>([]);
   const [states, setStates] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -87,6 +90,15 @@ export default function HomePage() {
     api.states().then(setStates).catch(() => {});
   }, []);
 
+  // Fetch app-side role once signed in (lazy-creates user row in our DB)
+  useEffect(() => {
+    if (!isSignedIn) { setAppUser(null); return; }
+    getToken().then((token) => {
+      if (!token) return;
+      api.users.me(token).then(setAppUser).catch(() => {});
+    });
+  }, [isSignedIn, getToken]);
+
   const locateMe = () => {
     navigator.geolocation?.getCurrentPosition(
       (pos) => setUserLocation([pos.coords.latitude, pos.coords.longitude]),
@@ -134,6 +146,27 @@ export default function HomePage() {
         >
           <Locate className="w-5 h-5 text-gray-600" />
         </button>
+        <SignedOut>
+          <SignInButton mode="modal">
+            <button className="bg-white shadow-md rounded-xl px-3 py-2 border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-700 shrink-0">
+              Sign in
+            </button>
+          </SignInButton>
+        </SignedOut>
+        <SignedIn>
+          {appUser && ["admin", "superadmin"].includes(appUser.role) && (
+            <a
+              href="/admin"
+              className="bg-white shadow-md rounded-xl p-2.5 border border-gray-200 hover:bg-gray-50 shrink-0"
+              title="Admin panel"
+            >
+              <ShieldCheck className="w-5 h-5 text-brand-600" />
+            </a>
+          )}
+          <div className="shrink-0">
+            <UserButton afterSignOutUrl="/" />
+          </div>
+        </SignedIn>
       </div>
 
       {/* ── Filter panel — positioned below the dynamic top bar ── */}
@@ -161,13 +194,23 @@ export default function HomePage() {
           paddingTop: "0.5rem",
         }}
       >
-        <button
-          onClick={() => setShowSubmit(true)}
-          className="flex items-center gap-1.5 bg-white border border-gray-200 shadow-lg rounded-full px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-        >
-          <Plus className="w-4 h-4 text-brand-600" />
-          Add a place
-        </button>
+        <SignedIn>
+          <button
+            onClick={() => setShowSubmit(true)}
+            className="flex items-center gap-1.5 bg-white border border-gray-200 shadow-lg rounded-full px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+          >
+            <Plus className="w-4 h-4 text-brand-600" />
+            Add a place
+          </button>
+        </SignedIn>
+        <SignedOut>
+          <SignInButton mode="modal">
+            <button className="flex items-center gap-1.5 bg-white border border-gray-200 shadow-lg rounded-full px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors">
+              <Plus className="w-4 h-4 text-gray-400" />
+              Sign in to add
+            </button>
+          </SignInButton>
+        </SignedOut>
 
         {loading ? (
           <span className="bg-white shadow rounded-full px-4 py-2 text-sm text-gray-500">

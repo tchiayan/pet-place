@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@clerk/nextjs";
 import { useState } from "react";
 import { X, CheckCircle2 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -19,6 +20,7 @@ interface Props {
 type Step = "form" | "success";
 
 export default function SubmitModal({ onClose }: Props) {
+  const { getToken } = useAuth();
   const [step, setStep] = useState<Step>("form");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -43,7 +45,9 @@ export default function SubmitModal({ onClose }: Props) {
     setLoading(true);
     setError("");
     try {
-      await api.submissions.create(form);
+      const token = await getToken();
+      if (!token) throw new Error("Not authenticated");
+      await api.submissions.create(form, token);
       setStep("success");
     } catch {
       setError("Something went wrong. Please try again.");

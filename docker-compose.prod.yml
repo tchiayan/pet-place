@@ -60,11 +60,11 @@ services:
       - backend
 
   certbot:
-    image: certbot/certbot
+    image: certbot/dns-cloudflare
     volumes:
-      - certbot_www:/var/www/certbot
       - certbot_conf:/etc/letsencrypt
-    # Run manually: docker compose -f docker-compose.prod.yml run certbot certonly --webroot ...
+      - ./cloudflare.ini:/cloudflare.ini:ro
+    # Run manually via: make ssl-init EMAIL=you@example.com
 
 volumes:
   postgres_data:
