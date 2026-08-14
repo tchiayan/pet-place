@@ -75,11 +75,12 @@ prod-import-no-geocode:
 ssl-init:
 	@test -f cloudflare.ini || (echo "ERROR: cloudflare.ini not found — copy cloudflare.ini.example and fill in your API token." && exit 1)
 	@test -n "$(EMAIL)" || (echo "ERROR: EMAIL not set — run: make ssl-init EMAIL=you@example.com" && exit 1)
+	@chmod 600 cloudflare.ini
 	docker compose -f docker-compose.prod.yml --env-file .env.prod \
 		run --rm certbot certonly \
 		--dns-cloudflare \
 		--dns-cloudflare-credentials /cloudflare.ini \
-		--dns-cloudflare-propagation-seconds 60 \
+		--dns-cloudflare-propagation-seconds 120 \
 		-d "*.snowfall.my" \
 		-d "snowfall.my" \
 		--email $(EMAIL) --agree-tos --no-eff-email
@@ -90,10 +91,11 @@ ssl-init:
 # Renew cert — run while prod stack is up; reloads nginx after renewal
 ssl-renew:
 	@test -f cloudflare.ini || (echo "ERROR: cloudflare.ini not found." && exit 1)
+	@chmod 600 cloudflare.ini
 	docker compose -f docker-compose.prod.yml --env-file .env.prod \
 		run --rm certbot renew \
 		--dns-cloudflare \
 		--dns-cloudflare-credentials /cloudflare.ini \
-		--dns-cloudflare-propagation-seconds 60
+		--dns-cloudflare-propagation-seconds 120
 	docker compose -f docker-compose.prod.yml --env-file .env.prod exec nginx nginx -s reload
 	@echo "Certificate renewed and nginx reloaded."
