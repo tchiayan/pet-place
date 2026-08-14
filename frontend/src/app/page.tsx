@@ -32,16 +32,13 @@ export default function HomePage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchPlaces = useCallback(
-    async (q: string, f: Filters, loc: [number, number] | null, b: Bounds | null) => {
+    async (q: string, f: Filters, b: Bounds | null) => {
       setLoading(true);
       try {
         let result;
         if (q) {
           // Text search: ignore viewport, return all matches across Malaysia
           result = await api.places.search(q, f.state, f.category);
-        } else if (loc && !f.state) {
-          // "Near me" mode with no state filter
-          result = await api.places.nearby(loc[0], loc[1], 5, f.category);
         } else if (b) {
           // Viewport mode: only fetch places visible in the current map bbox
           result = await api.places.list({
@@ -63,8 +60,8 @@ export default function HomePage() {
           });
         }
         setPlaces(result.items);
-        // Auto-fit map when a text search or nearby search returns results
-        if ((q || loc) && result.items.length > 0) {
+        // Auto-fit map when a text search returns results
+        if (q && result.items.length > 0) {
           setTimeout(() => mapRef.current?.fitPlaces(result.items), 50);
         }
       } catch (err) {
@@ -76,14 +73,14 @@ export default function HomePage() {
     []
   );
 
-  // Debounce: re-fetch when query, filters, location, or map bounds change
+  // Debounce: re-fetch when query, filters, or map bounds change
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
-      fetchPlaces(query, filters, userLocation, bounds);
+      fetchPlaces(query, filters, bounds);
     }, DEBOUNCE_MS);
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
-  }, [query, filters, userLocation, bounds, fetchPlaces]);
+  }, [query, filters, bounds, fetchPlaces]);
 
   // Load states for filter panel once
   useEffect(() => {
