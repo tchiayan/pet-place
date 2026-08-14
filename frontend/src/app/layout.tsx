@@ -1,3 +1,4 @@
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
@@ -21,24 +22,26 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="apple-touch-icon" href="/icon-192.png" />
-      </head>
-      <body className="bg-gray-50 text-gray-900 antialiased">
-        {children}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                  navigator.serviceWorker.register('/sw.js');
-                });
-              }
-            `,
-          }}
-        />
-      </body>
-    </html>
+    <ClerkProvider>
+      <html lang="en">
+        <head>
+          <link rel="apple-touch-icon" href="/icon-192.png" />
+        </head>
+        <body className="bg-gray-50 text-gray-900 antialiased">
+          {children}
+          <script
+            dangerouslySetInnerHTML={{
+              __html: `
+                if ('serviceWorker' in navigator) {
+                  window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/sw.js');
+                  });
+                }
+              `,
+            }}
+          />
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }

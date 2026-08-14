@@ -46,7 +46,7 @@ prod-up:
 	docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
 prod-down:
-	docker compose -f docker-compose.prod.yml down
+	docker compose -f docker-compose.prod.yml --env-file .env.prod down
 
 # Pull latest images from GHCR and restart changed containers
 prod-pull:
@@ -65,21 +65,37 @@ prod-import-no-geocode:
 	docker compose -f docker-compose.prod.yml --env-file .env.prod \
 		exec -e SKIP_GEOCODING=1 backend python scripts/import_csv.py
 
-# Issue SSL cert — run ONCE before prod-up, while port 80 is free.
-# Certbot opens port 80 itself (standalone mode); no nginx required.
-# Usage: make ssl-init DOMAIN=your-domain.com EMAIL=you@example.com
+# ── SSL — Cloudflare DNS-01 wildcard cert for *.snowfall.my ──────────────────
+#
+# Prerequisites:
+#   1. cloudflare.ini exists in the project root (see cloudflare.ini.example)
+#   2. EMAIL is set: make ssl-init EMAIL=you@example.com
+#
+# Issue wildcard cert — can run BEFORE prod-up (no port 80 required)
 ssl-init:
-	docker compose -f docker-compose.prod.yml --env-file .env.prod \
-		run --rm -p 80:80 certbot certonly \
-		--standalone \
-		-d $(DOMAIN) --email $(EMAIL) --agree-tos --no-eff-email
-	@echo "Certificate issued. Now run: make prod-up"
-
-# Renew SSL cert — run while the full prod stack is up (nginx serves the challenge).
-# Usage: make ssl-renew DOMAIN=your-domain.com EMAIL=you@example.com
-ssl-renew:
+	@test -f cloudflare.ini || (echo "ERROR: cloudflare.ini not found — copy cloudflare.ini.example and fill in your API token." && exit 1)
+	@test -n "$(EMAIL)" || (echo "ERROR: EMAIL not set — run: make ssl-init EMAIL=you@example.com" && exit 1)
+	@chmod 600 cloudflare.ini
 	docker compose -f docker-compose.prod.yml --env-file .env.prod \
 		run --rm certbot certonly \
-		--webroot --webroot-path /var/www/certbot \
-		-d $(DOMAIN) --email $(EMAIL) --agree-tos --no-eff-email --force-renewal
+		--dns-cloudflare \
+		--dns-cloudflare-credentials /cloudflare.ini \
+		--dns-cloudflare-propagation-seconds 120 \
+		-d "*.snowfall.my" \
+		-d "snowfall.my" \
+		--email $(EMAIL) --agree-tos --no-eff-email
+	@echo ""
+	@echo "Certificate issued at /etc/letsencrypt/live/snowfall.my/"
+	@echo "Now run: make prod-up"
+
+# Renew cert — run while prod stack is up; reloads nginx after renewal
+ssl-renew:
+	@test -f cloudflare.ini || (echo "ERROR: cloudflare.ini not found." && exit 1)
+	@chmod 600 cloudflare.ini
+	docker compose -f docker-compose.prod.yml --env-file .env.prod \
+		run --rm certbot renew \
+		--dns-cloudflare \
+		--dns-cloudflare-credentials /cloudflare.ini \
+		--dns-cloudflare-propagation-seconds 120
 	docker compose -f docker-compose.prod.yml --env-file .env.prod exec nginx nginx -s reload
+	@echo "Certificate renewed and nginx reloaded."

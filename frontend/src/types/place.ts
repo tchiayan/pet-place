@@ -28,11 +28,13 @@ export interface Submission {
   id: number;
   name: string;
   address: string;
-  state: string;
-  category: string;
-  seating: string;
-  remarks: string;
-  google_maps_url: string;
+  state: string | null;
+  category: string | null;
+  seating: string | null;
+  remarks: string | null;
+  google_maps_url: string | null;
   status: "pending" | "approved" | "rejected";
+  submitted_by: string | null;
+  reviewed_by: string | null;
   created_at: string;
 }

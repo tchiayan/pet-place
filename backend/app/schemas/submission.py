@@ -31,4 +31,6 @@ class SubmissionOut(BaseModel):
     remarks: str | None
     google_maps_url: str | None
     status: str
+    submitted_by: str | None
+    reviewed_by: str | None
     created_at: datetime

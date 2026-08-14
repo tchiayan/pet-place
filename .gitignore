@@ -55,6 +55,9 @@ yarn-error.log*
 certbot/
 letsencrypt/
 
+# Cloudflare API token — contains a secret, never commit
+cloudflare.ini
+
 # Test coverage
 coverage/
 .coverage

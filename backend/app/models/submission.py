@@ -16,4 +16,6 @@ class Submission(Base):
     remarks: Mapped[str | None] = mapped_column(Text)
     google_maps_url: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="pending", nullable=False)
+    submitted_by: Mapped[str | None] = mapped_column(String(255))
+    reviewed_by: Mapped[str | None] = mapped_column(String(255))
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())

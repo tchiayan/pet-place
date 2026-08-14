@@ -9,7 +9,9 @@ A mobile-friendly web app for discovering pet-friendly places in Malaysia. Data 
 - **Interactive map** — OpenStreetMap tiles with marker clustering; loads only the places visible in the current viewport
 - **Search & filter** — Search by name, area, or address; filter by state, category, and seating type
 - **Nearby search** — Uses the browser Geolocation API + PostGIS radius query to find places within a configurable radius
-- **Submit a place** — Users can submit new places via a form; submissions land in a moderation queue
+- **Submit a place** — Signed-in members can submit new places via a form; submissions land in a moderation queue
+- **RBAC** — Four roles (public, member, admin, superadmin) enforced on both frontend and backend via Clerk + JWT
+- **Admin panel** — Admins can approve/reject submissions (approval auto-publishes the place), manage user roles at `/admin`
 - **PWA** — Installable on Android/iOS; OSM tiles are cached by the service worker for offline browsing
 - **Production-ready** — Nginx reverse proxy, rate limiting, SSL via Let's Encrypt, Redis, Docker Compose
 
@@ -21,10 +23,30 @@ A mobile-friendly web app for discovering pet-friendly places in Malaysia. Data 
 |---|---|
 | Frontend | Next.js 14 (App Router), Tailwind CSS, Leaflet + markercluster |
 | Backend | FastAPI, SQLAlchemy 2, GeoAlchemy2, Alembic, Pydantic v2 |
+| Auth | Clerk (identity) + PyJWT / JWKS (backend token verification) |
 | Database | PostgreSQL 16 + PostGIS |
 | Cache | Redis 7 |
 | Proxy | Nginx |
 | Infra | Docker Compose (dev + prod) |
+
+---
+
+## Roles & Permissions
+
+| Action | Public | Member | Admin | Superadmin |
+|---|---|---|---|---|
+| View places | ✓ | ✓ | ✓ | ✓ |
+| Submit a place for review | — | ✓ | ✓ | ✓ |
+| Approve / reject submissions | — | — | ✓ | ✓ |
+| Edit / delete places | — | — | ✓ | ✓ |
+| Promote member → admin | — | — | ✓ | ✓ |
+| Demote / promote admins | — | — | — | ✓ |
+| Assign / revoke superadmin | — | — | — | ✓ |
+
+- **Public** — anyone browsing without an account
+- **Member** — anyone who signs up via Clerk (auto-assigned on first login)
+- **Admin** — promoted by a superadmin; can manage all content and promote members
+- **Superadmin** — seeded via env var on startup; full control including role management for all tiers
 
 ---
 
@@ -34,32 +56,44 @@ A mobile-friendly web app for discovering pet-friendly places in Malaysia. Data 
 pet_place/
 ├── backend/
 │   ├── app/
-│   │   ├── api/routes/      # places.py, submissions.py
-│   │   ├── models/          # SQLAlchemy ORM models
-│   │   ├── schemas/         # Pydantic request/response schemas
-│   │   ├── core/            # Settings (pydantic-settings)
-│   │   ├── db/              # SQLAlchemy session
-│   │   └── main.py          # FastAPI app entry point
-│   ├── alembic/             # Database migrations
+│   │   ├── api/routes/
+│   │   │   ├── places.py        # GET (public) + PUT/DELETE (admin)
+│   │   │   ├── submissions.py   # POST (member only)
+│   │   │   └── admin.py         # Submission queue + user role management
+│   │   ├── models/
+│   │   │   ├── place.py
+│   │   │   ├── submission.py    # + submitted_by, reviewed_by columns
+│   │   │   └── user.py          # clerk_user_id, role
+│   │   ├── schemas/             # Pydantic request/response schemas
+│   │   ├── core/
+│   │   │   ├── config.py        # Settings (+ CLERK_JWKS_URL, SUPERADMIN_CLERK_ID)
+│   │   │   └── auth.py          # JWT verification, lazy user creation, role deps
+│   │   ├── db/                  # SQLAlchemy session
+│   │   └── main.py              # FastAPI app + superadmin startup seeding
+│   ├── alembic/                 # Database migrations
 │   ├── scripts/
-│   │   └── import_csv.py    # One-time CSV import with optional geocoding
+│   │   └── import_csv.py        # One-time CSV import with optional geocoding
 │   └── requirements.txt
 ├── frontend/
 │   ├── src/
-│   │   ├── app/             # Next.js App Router pages
-│   │   ├── components/      # Map, SearchBar, FilterPanel, PlaceCard, SubmitModal
-│   │   ├── lib/api.ts       # API client (relative URLs in browser, internal URL for SSR)
-│   │   └── types/           # TypeScript types
+│   │   ├── app/
+│   │   │   ├── layout.tsx       # Wrapped with <ClerkProvider>
+│   │   │   ├── page.tsx         # Map page (auth-aware UI)
+│   │   │   └── admin/page.tsx   # Protected admin panel
+│   │   ├── components/          # Map, SearchBar, FilterPanel, PlaceCard, SubmitModal
+│   │   ├── lib/api.ts           # API client with optional auth token support
+│   │   ├── middleware.ts        # Clerk middleware (protects /admin)
+│   │   └── types/               # TypeScript types
 │   └── public/
-│       ├── manifest.json    # PWA manifest
-│       └── sw.js            # Service worker
+│       ├── manifest.json        # PWA manifest
+│       └── sw.js                # Service worker
 ├── nginx/
-│   ├── nginx.conf           # Dev reverse proxy
-│   └── nginx.prod.conf      # Prod: SSL, rate limiting, security headers
+│   ├── nginx.conf               # Dev reverse proxy
+│   └── nginx.prod.conf          # Prod: SSL, rate limiting, security headers
 ├── data/
 │   └── pet_friendly_place_data.csv
-├── docker-compose.yml       # Development
-├── docker-compose.prod.yml  # Production
+├── docker-compose.yml           # Development
+├── docker-compose.prod.yml      # Production
 ├── Makefile
 └── .env.prod.example
 ```
@@ -72,15 +106,23 @@ pet_place/
 
 - Docker & Docker Compose
 - GNU Make
-- A Google Maps Geocoding API key (optional — needed only for geocoding during import)
+- A [Clerk](https://clerk.com) account (free tier is sufficient)
+- A Google Maps Geocoding API key (optional — needed only for geocoding during CSV import)
 
-### 1. Configure environment
+### 1. Create a Clerk application
+
+1. Go to [dashboard.clerk.com](https://dashboard.clerk.com) and create a new application
+2. Under **API Keys**, copy your **Publishable Key** and **Secret Key**
+3. Find your JWKS URL — it follows the pattern `https://<your-frontend-api>/.well-known/jwks.json` (shown under **JWT Templates** in the dashboard)
+4. After signing in for the first time, find your **Clerk user ID** under **Users** (format: `user_xxxxxxxx`)
+
+### 2. Configure environment
 
 ```bash
 cp .env.prod.example .env
 ```
 
-Edit `.env` and fill in at minimum:
+Edit `.env` and fill in:
 
 ```env
 POSTGRES_USER=petplace
@@ -95,9 +137,15 @@ SECRET_KEY=generate-with-openssl-rand-hex-32
 
 GOOGLE_GEOCODING_API_KEY=   # leave blank to skip geocoding
 NEXT_PUBLIC_API_BASE_URL=   # leave blank — browser uses relative URLs through nginx
+
+# Clerk
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+CLERK_SECRET_KEY=sk_test_...
+CLERK_JWKS_URL=https://your-app.clerk.accounts.dev/.well-known/jwks.json
+SUPERADMIN_CLERK_ID=user_...   # your own Clerk user ID
 ```
 
-### 2. Start containers
+### 3. Start containers
 
 ```bash
 make up-d
@@ -108,13 +156,13 @@ Services started:
 - `http://localhost:3000` — Next.js dev server (direct)
 - `http://localhost:8000` — FastAPI (direct)
 
-### 3. Run migrations
+### 4. Run migrations
 
 ```bash
 make migrate
 ```
 
-### 4. Import place data
+### 5. Import place data
 
 **With geocoding** (requires `GOOGLE_GEOCODING_API_KEY`):
 ```bash
@@ -126,6 +174,10 @@ make import
 make import-no-geocode
 ```
 
+### 6. Become superadmin
+
+The backend seeds your superadmin row automatically at startup (from `SUPERADMIN_CLERK_ID`). Sign in to the app, then visit `http://localhost/admin` — you should have full access immediately.
+
 Open `http://localhost` — you should see the map populated with markers.
 
 ---
@@ -135,25 +187,37 @@ Open `http://localhost` — you should see the map populated with markers.
 Base URL: `/api`  
 Interactive docs: `http://localhost:8000/docs`
 
+All authenticated endpoints require an `Authorization: Bearer <clerk_jwt>` header.
+
 ### Places
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/places` | List places; supports `state`, `area`, `category`, `seating`, bbox params (`north/south/east/west`), `skip`, `limit` |
-| `GET` | `/api/places/nearby` | Places within radius; requires `lat`, `lng`; optional `radius_km` (default 5), `category`, `limit` |
-| `GET` | `/api/places/search` | Full-text search across name, area, sub_area, address; optional `state`, `category` |
-| `GET` | `/api/places/states` | List of distinct states |
-| `GET` | `/api/places/areas` | List of areas (optionally filtered by `state`) |
-| `GET` | `/api/places/{id}` | Single place by ID |
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/places` | — | List places; supports `state`, `area`, `category`, `seating`, bbox params, `skip`, `limit` |
+| `GET` | `/api/places/nearby` | — | Places within radius; requires `lat`, `lng`; optional `radius_km`, `category`, `limit` |
+| `GET` | `/api/places/search` | — | Full-text search across name, area, sub_area, address |
+| `GET` | `/api/places/states` | — | List of distinct states |
+| `GET` | `/api/places/areas` | — | List of areas (optionally filtered by `state`) |
+| `GET` | `/api/places/{id}` | — | Single place by ID |
+| `PUT` | `/api/places/{id}` | admin | Update place fields |
+| `DELETE` | `/api/places/{id}` | admin | Delete a place |
 
 ### Submissions
 
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/api/submissions` | Submit a new place for review |
-| `GET` | `/api/submissions` | List submissions; filter by `status` (`pending`/`approved`/`rejected`) |
-| `PATCH` | `/api/submissions/{id}/approve` | Approve a submission |
-| `PATCH` | `/api/submissions/{id}/reject` | Reject a submission |
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/submissions` | member | Submit a new place for review |
+
+### Admin
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `GET` | `/api/admin/submissions` | admin | List submissions filtered by `status` (`pending`/`approved`/`rejected`) |
+| `PATCH` | `/api/admin/submissions/{id}/approve` | admin | Approve submission and auto-create `Place` |
+| `PATCH` | `/api/admin/submissions/{id}/reject` | admin | Reject submission |
+| `GET` | `/api/admin/users` | admin | List all users with roles |
+| `GET` | `/api/admin/users/me` | member | Get current user's role |
+| `PATCH` | `/api/admin/users/{clerk_user_id}/role` | admin | Update a user's role |
 
 ---
 
@@ -188,13 +252,15 @@ A VPS with Docker installed (Ubuntu 22.04 recommended). Point your domain's A re
 
 ```bash
 cp .env.prod.example .env.prod
-# Fill in all values — strong passwords, real API keys, your domain
+# Fill in all values — strong passwords, real Clerk keys, your domain
 ```
 
 Update the domain placeholder in `nginx/nginx.prod.conf`:
 ```
 CHANGE_ME_YOUR_DOMAIN → your-actual-domain.com
 ```
+
+Use your Clerk **production** instance keys (`pk_live_…` / `sk_live_…`) for production.
 
 ### 3. Issue SSL certificate
 
@@ -236,6 +302,9 @@ The import script (`backend/scripts/import_csv.py`):
 ---
 
 ## Architecture Notes
+
+**Auth flow**  
+Clerk issues a short-lived JWT on the frontend. The backend verifies it via Clerk's JWKS endpoint (cached in-process). On the first authenticated request, the backend lazy-creates a `users` row with `role = "member"`. The superadmin row is seeded from `SUPERADMIN_CLERK_ID` at startup. Roles are stored in the app's own PostgreSQL database, not in Clerk metadata, so they can be joined against submission audit columns (`submitted_by`, `reviewed_by`).
 
 **Why relative API URLs?**  
 The frontend uses `""` as the base URL in the browser, so all `/api/…` requests go to the same origin and are proxied by Nginx to the backend. This avoids CORS entirely. For SSR (server components), the internal Docker URL `http://backend:8000` is used instead.
