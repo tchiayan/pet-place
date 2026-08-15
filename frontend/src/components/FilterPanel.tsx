@@ -22,8 +22,8 @@ export default function FilterPanel({ filters, states, onChange, onClose }: Prop
     <div className="bg-white rounded-2xl shadow-xl border border-gray-200 p-4 w-full max-w-sm">
       <div className="flex items-center justify-between mb-4">
         <h2 className="font-semibold text-gray-900">Filters</h2>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-          <X className="w-5 h-5" />
+        <button onClick={onClose} aria-label="Close filters" className="text-gray-400 hover:text-gray-600 focus-visible:ring-2 focus-visible:ring-gray-400 rounded">
+          <X className="w-5 h-5" aria-hidden="true" />
         </button>
       </div>
 
@@ -44,13 +44,13 @@ export default function FilterPanel({ filters, states, onChange, onClose }: Prop
       </Section>
 
       <Section label="State">
-        <div className="max-h-40 overflow-y-auto flex flex-col gap-1">
+        <div className="max-h-40 overflow-y-auto overscroll-y-contain flex flex-col gap-1">
           {states.map((s) => (
             <button
               key={s}
               onClick={() => set("state", s)}
               className={clsx(
-                "text-left text-sm px-3 py-1.5 rounded-lg transition-colors",
+                "text-left text-sm px-3 py-1.5 rounded-lg transition-colors focus-visible:ring-2 focus-visible:ring-brand-500",
                 filters.state === s
                   ? "bg-brand-600 text-white"
                   : "hover:bg-gray-100 text-gray-700"
@@ -64,9 +64,9 @@ export default function FilterPanel({ filters, states, onChange, onClose }: Prop
 
       <button
         onClick={() => onChange({ category: "", seating: "", state: "" })}
-        className="mt-4 w-full text-sm text-center text-gray-500 hover:text-gray-700 underline"
+        className="mt-4 w-full text-sm text-center text-gray-500 hover:text-gray-700 focus-visible:ring-2 focus-visible:ring-gray-400 rounded underline"
       >
-        Clear all filters
+        Clear All Filters
       </button>
     </div>
   );
@@ -94,7 +94,7 @@ function Chip({
     <button
       onClick={onClick}
       className={clsx(
-        "text-sm px-3 py-1 rounded-full border transition-colors",
+        "text-sm px-3 py-1 rounded-full border transition-colors focus-visible:ring-2 focus-visible:ring-brand-500",
         active
           ? "bg-brand-600 text-white border-brand-600"
           : "border-gray-300 text-gray-700 hover:border-brand-500 hover:text-brand-700"

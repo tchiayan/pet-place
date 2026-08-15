@@ -3,7 +3,7 @@
 import { SignInButton, SignedIn, SignedOut, UserButton, useAuth } from "@clerk/nextjs";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Locate, X, PawPrint, Plus, ShieldCheck } from "lucide-react";
+import { Locate, X, UserCircle2, Plus, ShieldCheck, ChevronDown } from "lucide-react";
 import { api, type UserOut } from "@/lib/api";
 import type { Filters, Place } from "@/types/place";
 import type { Bounds, MapHandle } from "@/components/Map";
@@ -40,10 +40,8 @@ export default function HomePage() {
       try {
         let result;
         if (q) {
-          // Text search: ignore viewport, return all matches across Malaysia
           result = await api.places.search(q, f.state, f.category);
         } else if (b) {
-          // Viewport mode: only fetch places visible in the current map bbox
           result = await api.places.list({
             limit: "500",
             north: String(b.north),
@@ -63,7 +61,6 @@ export default function HomePage() {
           });
         }
         setPlaces(result.items);
-        // Auto-fit map when a text search returns results
         if (q && result.items.length > 0) {
           setTimeout(() => mapRef.current?.fitPlaces(result.items), 50);
         }
@@ -76,7 +73,6 @@ export default function HomePage() {
     []
   );
 
-  // Debounce: re-fetch when query, filters, or map bounds change
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
@@ -85,12 +81,10 @@ export default function HomePage() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [query, filters, bounds, fetchPlaces]);
 
-  // Load states for filter panel once
   useEffect(() => {
     api.states().then(setStates).catch(() => {});
   }, []);
 
-  // Fetch app-side role once signed in (lazy-creates user row in our DB)
   useEffect(() => {
     if (!isSignedIn) { setAppUser(null); return; }
     getToken().then((token) => {
@@ -109,7 +103,7 @@ export default function HomePage() {
   const hasFilters = !!(filters.category || filters.seating || filters.state);
 
   return (
-    <main className="relative h-screen w-screen overflow-hidden">
+    <main id="main-content" className="relative w-screen overflow-hidden">
       <Map
         ref={mapRef}
         places={places}
@@ -118,7 +112,7 @@ export default function HomePage() {
         onBoundsChange={setBounds}
       />
 
-      {/* ── Top bar ── */}
+      {/* ── Top bar: search + avatar ── */}
       <div
         className="absolute top-0 left-0 right-0 z-10 flex items-center gap-2"
         style={{
@@ -128,10 +122,7 @@ export default function HomePage() {
           paddingRight: "max(0.75rem, env(safe-area-inset-right, 0.75rem))",
         }}
       >
-        <div className="bg-brand-600 text-white rounded-xl p-2 shadow-md shrink-0">
-          <PawPrint className="w-5 h-5" />
-        </div>
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <SearchBar
             value={query}
             onChange={setQuery}
@@ -139,41 +130,42 @@ export default function HomePage() {
             hasFilters={hasFilters}
           />
         </div>
-        <button
-          onClick={locateMe}
-          className="bg-white shadow-md rounded-xl p-2.5 border border-gray-200 hover:bg-gray-50 shrink-0"
-          title="Use my location"
-        >
-          <Locate className="w-5 h-5 text-gray-600" />
-        </button>
-        <SignedOut>
-          <SignInButton mode="modal">
-            <button className="bg-white shadow-md rounded-xl px-3 py-2 border border-gray-200 hover:bg-gray-50 text-sm font-medium text-gray-700 shrink-0">
-              Sign in
-            </button>
-          </SignInButton>
-        </SignedOut>
+
+        {/* Admin shortcut — only for admins */}
         <SignedIn>
           {appUser && ["admin", "superadmin"].includes(appUser.role) && (
             <a
               href="/admin"
-              className="bg-white shadow-md rounded-xl p-2.5 border border-gray-200 hover:bg-gray-50 shrink-0"
-              title="Admin panel"
+              className="bg-white shadow-md rounded-full p-2.5 border border-gray-200 hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-brand-500 shrink-0"
+              aria-label="Admin panel"
             >
-              <ShieldCheck className="w-5 h-5 text-brand-600" />
+              <ShieldCheck className="w-5 h-5 text-brand-600" aria-hidden="true" />
             </a>
           )}
+          {/* Clerk's UserButton renders as a circular avatar */}
           <div className="shrink-0">
             <UserButton afterSignOutUrl="/" />
           </div>
         </SignedIn>
+
+        {/* Signed-out: circular avatar placeholder that opens sign-in */}
+        <SignedOut>
+          <SignInButton mode="modal">
+            <button
+              className="w-9 h-9 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-brand-500 shrink-0"
+              aria-label="Sign in"
+            >
+              <UserCircle2 className="w-6 h-6 text-gray-400" aria-hidden="true" />
+            </button>
+          </SignInButton>
+        </SignedOut>
       </div>
 
-      {/* ── Filter panel — positioned below the dynamic top bar ── */}
+      {/* ── Filter panel — positioned below the top bar ── */}
       {showFilters && (
         <div
           className="absolute left-3 right-3 z-20 flex justify-center"
-          style={{ top: "calc(4.5rem + env(safe-area-inset-top, 0px))" }}
+          style={{ top: "calc(4rem + env(safe-area-inset-top, 0px))" }}
         >
           <FilterPanel
             filters={filters}
@@ -184,89 +176,33 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* ── Bottom action bar ── */}
+      {/* ── Locate button — lower left, above bottom sheet ── */}
       <div
-        className="absolute bottom-0 left-0 right-0 z-10 flex items-center justify-between"
+        className="absolute left-0 z-10"
         style={{
-          paddingBottom: "max(1rem, env(safe-area-inset-bottom, 1rem))",
-          paddingLeft: "max(1rem, env(safe-area-inset-left, 1rem))",
-          paddingRight: "max(1rem, env(safe-area-inset-right, 1rem))",
-          paddingTop: "0.5rem",
+          bottom: "calc(5rem + env(safe-area-inset-bottom, 0px))",
+          paddingLeft: "max(0.75rem, env(safe-area-inset-left, 0.75rem))",
         }}
       >
-        <SignedIn>
-          <button
-            onClick={() => setShowSubmit(true)}
-            className="flex items-center gap-1.5 bg-white border border-gray-200 shadow-lg rounded-full px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-          >
-            <Plus className="w-4 h-4 text-brand-600" />
-            Add a place
-          </button>
-        </SignedIn>
-        <SignedOut>
-          <SignInButton mode="modal">
-            <button className="flex items-center gap-1.5 bg-white border border-gray-200 shadow-lg rounded-full px-4 py-2 text-sm font-medium text-gray-500 hover:bg-gray-50 transition-colors">
-              <Plus className="w-4 h-4 text-gray-400" />
-              Sign in to add
-            </button>
-          </SignInButton>
-        </SignedOut>
-
-        {loading ? (
-          <span className="bg-white shadow rounded-full px-4 py-2 text-sm text-gray-500">
-            Searching…
-          </span>
-        ) : (
-          <button
-            onClick={() => setShowList((v) => !v)}
-            className="bg-brand-600 text-white shadow-lg rounded-full px-5 py-2 text-sm font-medium hover:bg-brand-700 transition-colors"
-          >
-            {places.length} place{places.length !== 1 ? "s" : ""} {showList ? "▲" : "▼"}
-          </button>
-        )}
+        <button
+          onClick={locateMe}
+          className="bg-white shadow-md rounded-xl p-2.5 border border-gray-200 hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1"
+          aria-label="Use my location"
+        >
+          <Locate className="w-5 h-5 text-gray-600" aria-hidden="true" />
+        </button>
       </div>
 
-      {/* ── Slide-up list ── */}
-      {showList && (
-        <div
-          className="absolute bottom-0 left-0 right-0 z-20 bg-white rounded-t-3xl shadow-2xl max-h-[65vh] flex flex-col"
-          style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))" }}
-        >
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <p className="font-semibold text-gray-900">{places.length} results</p>
-            <button onClick={() => setShowList(false)} className="text-gray-400 hover:text-gray-600">
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          <div className="overflow-y-auto p-3 flex flex-col gap-2">
-            {places.map((p) => (
-              <PlaceCard
-                key={p.id}
-                place={p}
-                compact
-                onClick={() => {
-                  setSelected(p);
-                  setShowList(false);
-                  if (p.latitude && p.longitude) {
-                    mapRef.current?.flyTo(p.latitude, p.longitude);
-                  }
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Selected place card — sits above the bottom bar ── */}
+      {/* ── Selected place card — sits above the bottom sheet ── */}
       {selected && (
         <div
           className="absolute left-3 right-3 z-20"
-          style={{ bottom: "calc(4.5rem + max(1rem, env(safe-area-inset-bottom, 1rem)))" }}
+          style={{ bottom: "calc(4.5rem + env(safe-area-inset-bottom, 0px))" }}
         >
           <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 p-4">
             <div className="flex items-start justify-between gap-2">
               <div className="flex-1 min-w-0">
-                <h2 className="font-bold text-gray-900">{selected.name}</h2>
+                <h2 className="font-bold text-gray-900 text-pretty">{selected.name}</h2>
                 {selected.address && (
                   <p className="text-xs text-gray-500 mt-0.5">{selected.address}</p>
                 )}
@@ -286,8 +222,12 @@ export default function HomePage() {
                   <p className="text-xs text-gray-500 mt-1.5 italic">{selected.remarks}</p>
                 )}
               </div>
-              <button onClick={() => setSelected(null)} className="text-gray-400 hover:text-gray-600 shrink-0">
-                <X className="w-5 h-5" />
+              <button
+                onClick={() => setSelected(null)}
+                className="text-gray-400 hover:text-gray-600 focus-visible:ring-2 focus-visible:ring-gray-400 rounded shrink-0"
+                aria-label="Dismiss"
+              >
+                <X className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
             {selected.latitude && selected.longitude && (
@@ -295,7 +235,7 @@ export default function HomePage() {
                 href={`https://www.google.com/maps/dir/?api=1&destination=${selected.latitude},${selected.longitude}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-3 block w-full text-center bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium py-2 rounded-xl transition-colors"
+                className="mt-3 block w-full text-center bg-brand-600 hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-500 text-white text-sm font-medium py-2 rounded-xl transition-colors"
               >
                 Get Directions
               </a>
@@ -303,6 +243,82 @@ export default function HomePage() {
           </div>
         </div>
       )}
+
+      {/* ── Persistent bottom sheet ── */}
+      <div className="absolute bottom-0 left-0 right-0 z-10 bg-white rounded-t-2xl shadow-2xl">
+        {/* Drag handle — decorative, tap target is the chevron button */}
+        <div className="flex justify-center pt-2 pb-0" aria-hidden="true">
+          <div className="w-10 h-1 bg-gray-200 rounded-full" />
+        </div>
+
+        {/* Sheet header: always visible */}
+        <div
+          className="flex items-center gap-3 px-4 pt-2 pb-3"
+          style={{
+            paddingBottom: showList
+              ? "0.75rem"
+              : "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))",
+          }}
+        >
+          <SignedIn>
+            <button
+              onClick={() => setShowSubmit(true)}
+              className="flex items-center gap-1.5 bg-brand-600 text-white rounded-full px-4 py-2 text-sm font-medium hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-500 transition-colors shrink-0"
+            >
+              <Plus className="w-4 h-4" aria-hidden="true" />
+              Add a Place
+            </button>
+          </SignedIn>
+          <SignedOut>
+            <SignInButton mode="modal">
+              <button className="flex items-center gap-1.5 border border-gray-200 text-gray-600 rounded-full px-4 py-2 text-sm font-medium hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-brand-500 transition-colors shrink-0">
+                <Plus className="w-4 h-4 text-gray-400" aria-hidden="true" />
+                Sign In to Add
+              </button>
+            </SignInButton>
+          </SignedOut>
+
+          <button
+            onClick={() => setShowList((v) => !v)}
+            aria-expanded={showList}
+            aria-label={showList ? "Collapse places list" : "Expand places list"}
+            className="flex items-center gap-1.5 ml-auto text-sm text-gray-600 hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-gray-400 rounded-lg px-2 py-1.5 transition-colors"
+          >
+            <span aria-live="polite" aria-atomic="true">
+              {loading
+                ? "Searching…"
+                : `${places.length} place${places.length !== 1 ? "s" : ""}`}
+            </span>
+            <ChevronDown
+              className={`w-4 h-4 transition-transform motion-reduce:transition-none ${showList ? "rotate-180" : ""}`}
+              aria-hidden="true"
+            />
+          </button>
+        </div>
+
+        {/* Expanded list */}
+        {showList && (
+          <div
+            className="overflow-y-auto overscroll-y-contain p-3 flex flex-col gap-2 max-h-[55vh] border-t border-gray-100"
+            style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))" }}
+          >
+            {places.map((p) => (
+              <PlaceCard
+                key={p.id}
+                place={p}
+                compact
+                onClick={() => {
+                  setSelected(p);
+                  setShowList(false);
+                  if (p.latitude && p.longitude) {
+                    mapRef.current?.flyTo(p.latitude, p.longitude);
+                  }
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* ── Submit modal ── */}
       {showSubmit && <SubmitModal onClose={() => setShowSubmit(false)} />}

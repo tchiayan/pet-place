@@ -5,9 +5,9 @@ import clsx from "clsx";
 import type { Place } from "@/types/place";
 
 const CATEGORY_ICON: Record<string, React.ReactNode> = {
-  "Food & Beverage": <UtensilsCrossed className="w-4 h-4" />,
-  Attraction: <Tent className="w-4 h-4" />,
-  "Pet friendly stay": <Building2 className="w-4 h-4" />,
+  "Food & Beverage": <UtensilsCrossed className="w-4 h-4" aria-hidden="true" />,
+  Attraction: <Tent className="w-4 h-4" aria-hidden="true" />,
+  "Pet friendly stay": <Building2 className="w-4 h-4" aria-hidden="true" />,
 };
 
 const CATEGORY_COLOR: Record<string, string> = {
@@ -31,7 +31,7 @@ export default function PlaceCard({ place, onClick, compact = false }: Props) {
     <button
       onClick={onClick}
       className={clsx(
-        "w-full text-left bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow",
+        "w-full text-left bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-1 transition-shadow",
         compact ? "p-3" : "p-4"
       )}
     >
@@ -40,7 +40,7 @@ export default function PlaceCard({ place, onClick, compact = false }: Props) {
           <p className="font-semibold text-gray-900 truncate">{place.name}</p>
           {!compact && place.address && (
             <p className="text-xs text-gray-500 mt-0.5 flex items-start gap-1">
-              <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
+              <MapPin className="w-3 h-3 mt-0.5 shrink-0" aria-hidden="true" />
               <span className="line-clamp-2">{place.address}</span>
             </p>
           )}
@@ -58,7 +58,7 @@ export default function PlaceCard({ place, onClick, compact = false }: Props) {
             )}
             {place.seating && (
               <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                <Sofa className="w-3 h-3" />
+                <Sofa className="w-3 h-3" aria-hidden="true" />
                 {place.seating}
               </span>
             )}

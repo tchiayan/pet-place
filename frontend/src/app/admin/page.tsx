@@ -17,6 +17,8 @@ const roleBadge: Record<string, string> = {
   superadmin: "bg-purple-100 text-purple-700",
 };
 
+const dateFormat: Intl.DateTimeFormatOptions = { year: "numeric", month: "short", day: "numeric" };
+
 export default function AdminPage() {
   const { getToken, isSignedIn, isLoaded } = useAuth();
   const router = useRouter();
@@ -127,20 +129,20 @@ export default function AdminPage() {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200 px-4 py-4 flex items-center gap-3">
-        <ShieldCheck className="w-6 h-6 text-brand-600" />
+        <ShieldCheck className="w-6 h-6 text-brand-600" aria-hidden="true" />
         <div>
           <h1 className="font-bold text-gray-900 text-lg">Admin Panel</h1>
           <p className="text-xs text-gray-500">
             Signed in as <span className={`font-medium px-1.5 py-0.5 rounded-full text-xs ${roleBadge[me.role]}`}>{me.role}</span>
           </p>
         </div>
-        <a href="/" className="ml-auto text-sm text-gray-500 hover:text-gray-700">← Back to map</a>
+        <a href="/" className="ml-auto text-sm text-gray-500 hover:text-gray-700">← Back to Map</a>
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b border-gray-200 px-4 flex gap-1">
-        <TabBtn active={tab === "submissions"} onClick={() => setTab("submissions")} icon={<ClipboardList className="w-4 h-4" />} label="Submissions" />
-        <TabBtn active={tab === "users"} onClick={() => setTab("users")} icon={<Users className="w-4 h-4" />} label="Users" />
+      <div className="bg-white border-b border-gray-200 px-4 flex gap-1" role="tablist">
+        <TabBtn active={tab === "submissions"} onClick={() => setTab("submissions")} icon={<ClipboardList className="w-4 h-4" aria-hidden="true" />} label="Submissions" />
+        <TabBtn active={tab === "users"} onClick={() => setTab("users")} icon={<Users className="w-4 h-4" aria-hidden="true" />} label="Users" />
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-6">
@@ -152,7 +154,7 @@ export default function AdminPage() {
                 <button
                   key={s}
                   onClick={() => setSubStatus(s)}
-                  className={`px-3 py-1 rounded-full text-sm font-medium capitalize transition-colors ${
+                  className={`px-3 py-1 rounded-full text-sm font-medium capitalize transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 ${
                     subStatus === s
                       ? "bg-brand-600 text-white"
                       : "bg-white border border-gray-200 text-gray-600 hover:bg-gray-50"
@@ -184,7 +186,7 @@ export default function AdminPage() {
                           <p className="text-xs text-gray-500 mt-1.5 italic">{sub.remarks}</p>
                         )}
                         <p className="text-xs text-gray-400 mt-2">
-                          Submitted {new Date(sub.created_at).toLocaleDateString()}
+                          Submitted {new Date(sub.created_at).toLocaleDateString(undefined, dateFormat)}
                         </p>
                       </div>
 
@@ -193,17 +195,17 @@ export default function AdminPage() {
                           <button
                             onClick={() => handleApprove(sub.id)}
                             disabled={subActing === sub.id}
-                            className="flex items-center gap-1 bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1.5 rounded-xl text-xs font-medium disabled:opacity-50 transition-colors"
+                            className="flex items-center gap-1 bg-green-50 hover:bg-green-100 text-green-700 px-3 py-1.5 rounded-xl text-xs font-medium disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-green-500 transition-colors"
                           >
-                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
                             Approve
                           </button>
                           <button
                             onClick={() => handleReject(sub.id)}
                             disabled={subActing === sub.id}
-                            className="flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-700 px-3 py-1.5 rounded-xl text-xs font-medium disabled:opacity-50 transition-colors"
+                            className="flex items-center gap-1 bg-red-50 hover:bg-red-100 text-red-700 px-3 py-1.5 rounded-xl text-xs font-medium disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-red-500 transition-colors"
                           >
-                            <XCircle className="w-3.5 h-3.5" />
+                            <XCircle className="w-3.5 h-3.5" aria-hidden="true" />
                             Reject
                           </button>
                         </div>
@@ -237,7 +239,7 @@ export default function AdminPage() {
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{u.clerk_user_id}</p>
                         <p className="text-xs text-gray-400 mt-0.5">
-                          Joined {new Date(u.created_at).toLocaleDateString()}
+                          Joined {new Date(u.created_at).toLocaleDateString(undefined, dateFormat)}
                         </p>
                       </div>
                       <div className="shrink-0">
@@ -247,13 +249,13 @@ export default function AdminPage() {
                               value={u.role}
                               disabled={roleActing === u.clerk_user_id}
                               onChange={(e) => handleRoleChange(u.clerk_user_id, e.target.value)}
-                              className={`appearance-none pl-2.5 pr-7 py-1 rounded-full text-xs font-medium border-0 cursor-pointer disabled:opacity-50 ${roleBadge[u.role]}`}
+                              className={`appearance-none pl-2.5 pr-7 py-1 rounded-full text-xs font-medium border-0 cursor-pointer disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-brand-500 ${roleBadge[u.role]}`}
                             >
                               {ROLES.filter((r) => me.role === "superadmin" || r !== "superadmin").map((r) => (
                                 <option key={r} value={r}>{r}</option>
                               ))}
                             </select>
-                            <ChevronDown className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+                            <ChevronDown className="w-3 h-3 absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" aria-hidden="true" />
                           </div>
                         ) : (
                           <span className={`text-xs font-medium px-2.5 py-1 rounded-full ${roleBadge[u.role] ?? "bg-gray-100 text-gray-600"}`}>
@@ -276,8 +278,10 @@ export default function AdminPage() {
 function TabBtn({ active, onClick, icon, label }: { active: boolean; onClick: () => void; icon: React.ReactNode; label: string }) {
   return (
     <button
+      role="tab"
+      aria-selected={active}
       onClick={onClick}
-      className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+      className={`flex items-center gap-1.5 px-4 py-3 text-sm font-medium border-b-2 transition-colors focus-visible:ring-2 focus-visible:ring-brand-500 ${
         active
           ? "border-brand-600 text-brand-600"
           : "border-transparent text-gray-500 hover:text-gray-700"
