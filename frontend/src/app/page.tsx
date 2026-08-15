@@ -319,7 +319,7 @@ export default function HomePage() {
           )}
 
           <button
-            onClick={() => setShowList((v) => !v)}
+            onClick={() => { setShowList((v) => !v); setSelected(null); }}
             aria-expanded={showList}
             aria-label={showList ? "Collapse places list" : "Expand places list"}
             className="flex items-center gap-1.5 ml-auto text-sm text-gray-600 hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-gray-400 rounded-lg px-2 py-1.5 transition-colors"
