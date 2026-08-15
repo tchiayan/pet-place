@@ -88,19 +88,21 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    fetch("http://ip-api.com/json/?fields=status,lat,lon")
+    fetch(`${window.location.protocol}//ip-api.com/json/?fields=status,lat,lon`)
       .then((r) => r.json())
       .then((d) => { if (d.status === "success") setIpCenter([d.lat, d.lon]); })
       .catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (!isSignedIn) { setAppUser(null); return; }
+    if (!isLoaded || !isSignedIn) { setAppUser(null); return; }
+    let cancelled = false;
     getToken().then((token) => {
-      if (!token) return;
-      api.users.me(token).then(setAppUser).catch(() => {});
+      if (cancelled || !token) return;
+      api.users.me(token).then((u) => { if (!cancelled) setAppUser(u); }).catch(() => {});
     });
-  }, [isSignedIn, getToken]);
+    return () => { cancelled = true; };
+  }, [isLoaded, isSignedIn, getToken]);
 
   useEffect(() => {
     if (!isSignedIn || !clerkUser) return;

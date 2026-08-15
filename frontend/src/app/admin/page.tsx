@@ -32,6 +32,7 @@ export default function AdminPage() {
   const [tab, setTab] = useState<Tab>("submissions");
   const [me, setMe] = useState<UserOut | null>(null);
   const [authError, setAuthError] = useState(false);
+  const [authRetry, setAuthRetry] = useState(0);
 
   // ── Submissions ──
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -63,19 +64,28 @@ export default function AdminPage() {
   useEffect(() => {
     if (!isLoaded) return;
     if (!isSignedIn) { router.replace("/"); return; }
+    let cancelled = false;
+    let tid: ReturnType<typeof setTimeout> | null = null;
     getToken().then((token) => {
-      if (!token) { router.replace("/"); return; }
+      if (cancelled) return;
+      if (!token) {
+        // Token not ready yet — retry shortly instead of redirecting
+        tid = setTimeout(() => { if (!cancelled) setAuthRetry((n) => n + 1); }, 400);
+        return;
+      }
       api.users.me(token)
         .then((u) => {
-          if (!["admin", "superadmin"].includes(u.role)) {
-            router.replace("/");
-          } else {
-            setMe(u);
-          }
+          if (cancelled) return;
+          if (!["admin", "superadmin"].includes(u.role)) router.replace("/");
+          else setMe(u);
         })
-        .catch(() => setAuthError(true));
+        .catch(() => { if (!cancelled) setAuthError(true); });
     });
-  }, [isLoaded, isSignedIn, getToken, router]);
+    return () => {
+      cancelled = true;
+      if (tid) clearTimeout(tid);
+    };
+  }, [isLoaded, isSignedIn, getToken, router, authRetry]);
 
   // ── Submissions fetch ──
   useEffect(() => {
