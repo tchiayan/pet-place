@@ -2,7 +2,7 @@
 
 import { useAuth } from "@clerk/nextjs";
 import { useState } from "react";
-import { X, CheckCircle2 } from "lucide-react";
+import { X, CheckCircle2, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
 
 const CATEGORIES = ["Food & Beverage", "Attraction", "Pet friendly stay"];
@@ -23,6 +23,8 @@ export default function SubmitModal({ onClose }: Props) {
   const { getToken } = useAuth();
   const [step, setStep] = useState<Step>("form");
   const [loading, setLoading] = useState(false);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState("");
   const [error, setError] = useState("");
   const [form, setForm] = useState({
     name: "",
@@ -35,6 +37,29 @@ export default function SubmitModal({ onClose }: Props) {
   });
 
   const set = (k: keyof typeof form, v: string) => setForm((f) => ({ ...f, [k]: v }));
+
+  const handleUrlBlur = async () => {
+    const url = form.google_maps_url.trim();
+    if (!url) return;
+    setLookupLoading(true);
+    setLookupError("");
+    try {
+      const token = await getToken();
+      if (!token) return;
+      const result = await api.places.lookupUrl(url, token);
+      setForm((f) => ({
+        ...f,
+        name: result.name || f.name,
+        address: result.address || f.address,
+        state: result.state || f.state,
+        category: result.category || f.category,
+      }));
+    } catch {
+      setLookupError("Couldn't find details from this link — please fill in manually.");
+    } finally {
+      setLookupLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,9 +81,10 @@ export default function SubmitModal({ onClose }: Props) {
     }
   };
 
+  const disabled = lookupLoading || loading;
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
-      {/* Backdrop */}
       <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
 
       <div
@@ -67,7 +93,6 @@ export default function SubmitModal({ onClose }: Props) {
         aria-labelledby="submit-modal-title"
         className="relative bg-white w-full sm:max-w-md rounded-t-3xl sm:rounded-2xl shadow-2xl max-h-[90vh] flex flex-col"
       >
-        {/* Header */}
         <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100">
           <h2 id="submit-modal-title" className="font-bold text-gray-900 text-lg">
             {step === "form" ? "Add a Pet-Friendly Place" : "Thank You!"}
@@ -96,6 +121,33 @@ export default function SubmitModal({ onClose }: Props) {
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="overflow-y-auto overscroll-y-contain px-5 py-4 flex flex-col gap-4">
+            {/* Google Maps URL — primary fast path */}
+            <div className="flex flex-col gap-1">
+              <label className="flex flex-col gap-1">
+                <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Google Maps Link</span>
+                <div className="relative">
+                  <input
+                    type="url"
+                    name="google_maps_url"
+                    value={form.google_maps_url}
+                    onChange={(e) => set("google_maps_url", e.target.value)}
+                    onBlur={handleUrlBlur}
+                    placeholder="https://maps.google.com/…"
+                    autoComplete="url"
+                    className={inputCls}
+                  />
+                  {lookupLoading && (
+                    <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-brand-500 animate-spin" aria-hidden="true" />
+                  )}
+                </div>
+              </label>
+              {lookupError ? (
+                <p role="alert" className="text-amber-600 text-xs">{lookupError}</p>
+              ) : (
+                <p className="text-gray-400 text-xs">Paste a Google Maps link to auto-fill the details below.</p>
+              )}
+            </div>
+
             <Field label="Place Name *">
               <input
                 type="text"
@@ -104,6 +156,7 @@ export default function SubmitModal({ onClose }: Props) {
                 onChange={(e) => set("name", e.target.value)}
                 placeholder="e.g. Corgi & The Gang Pet Cafe"
                 autoComplete="off"
+                disabled={disabled}
                 className={inputCls}
               />
             </Field>
@@ -116,20 +169,33 @@ export default function SubmitModal({ onClose }: Props) {
                 placeholder="Full address"
                 rows={2}
                 autoComplete="off"
+                disabled={disabled}
                 className={inputCls}
               />
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
               <Field label="State">
-                <select name="state" value={form.state} onChange={(e) => set("state", e.target.value)} className={inputCls}>
+                <select
+                  name="state"
+                  value={form.state}
+                  onChange={(e) => set("state", e.target.value)}
+                  disabled={disabled}
+                  className={inputCls}
+                >
                   <option value="">Select…</option>
                   {STATES.map((s) => <option key={s}>{s}</option>)}
                 </select>
               </Field>
 
               <Field label="Category">
-                <select name="category" value={form.category} onChange={(e) => set("category", e.target.value)} className={inputCls}>
+                <select
+                  name="category"
+                  value={form.category}
+                  onChange={(e) => set("category", e.target.value)}
+                  disabled={disabled}
+                  className={inputCls}
+                >
                   <option value="">Select…</option>
                   {CATEGORIES.map((c) => <option key={c}>{c}</option>)}
                 </select>
@@ -137,22 +203,16 @@ export default function SubmitModal({ onClose }: Props) {
             </div>
 
             <Field label="Seating Type">
-              <select name="seating" value={form.seating} onChange={(e) => set("seating", e.target.value)} className={inputCls}>
+              <select
+                name="seating"
+                value={form.seating}
+                onChange={(e) => set("seating", e.target.value)}
+                disabled={disabled}
+                className={inputCls}
+              >
                 <option value="">Select…</option>
                 {SEATINGS.map((s) => <option key={s}>{s}</option>)}
               </select>
-            </Field>
-
-            <Field label="Google Maps Link">
-              <input
-                type="url"
-                name="google_maps_url"
-                value={form.google_maps_url}
-                onChange={(e) => set("google_maps_url", e.target.value)}
-                placeholder="https://maps.google.com/…"
-                autoComplete="url"
-                className={inputCls}
-              />
             </Field>
 
             <Field label="Remarks / Notes">
@@ -163,6 +223,7 @@ export default function SubmitModal({ onClose }: Props) {
                 onChange={(e) => set("remarks", e.target.value)}
                 placeholder="e.g. Small breeds only, outdoor area"
                 autoComplete="off"
+                disabled={disabled}
                 className={inputCls}
               />
             </Field>
@@ -171,7 +232,7 @@ export default function SubmitModal({ onClose }: Props) {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={disabled}
               className="w-full bg-brand-600 hover:bg-brand-700 disabled:opacity-60 focus-visible:ring-2 focus-visible:ring-brand-500 text-white font-semibold py-3 rounded-xl transition-colors mt-1 mb-2"
             >
               {loading ? "Submitting…" : "Submit for Review"}
@@ -184,7 +245,7 @@ export default function SubmitModal({ onClose }: Props) {
 }
 
 const inputCls =
-  "w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus-visible:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-100 bg-white transition-all";
+  "w-full border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus-visible:border-brand-500 focus-visible:ring-2 focus-visible:ring-brand-100 bg-white transition-all disabled:opacity-50 disabled:cursor-not-allowed";
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

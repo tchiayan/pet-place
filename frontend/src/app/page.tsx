@@ -1,6 +1,6 @@
 "use client";
 
-import { SignInButton, SignedIn, SignedOut, UserButton, useAuth } from "@clerk/nextjs";
+import { SignInButton, SignedIn, SignedOut, UserButton, useAuth, useUser } from "@clerk/nextjs";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Locate, X, UserCircle2, Plus, ShieldCheck, ChevronDown } from "lucide-react";
@@ -18,6 +18,7 @@ const DEBOUNCE_MS = 400;
 
 export default function HomePage() {
   const { getToken, isSignedIn, isLoaded } = useAuth();
+  const { user: clerkUser } = useUser();
   const [appUser, setAppUser] = useState<UserOut | null>(null);
   const [places, setPlaces] = useState<Place[]>([]);
   const [states, setStates] = useState<string[]>([]);
@@ -28,6 +29,7 @@ export default function HomePage() {
   const [showSubmit, setShowSubmit] = useState(false);
   const [selected, setSelected] = useState<Place | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [ipCenter, setIpCenter] = useState<[number, number] | null>(null);
   const [loading, setLoading] = useState(false);
   const [showList, setShowList] = useState(false);
 
@@ -86,12 +88,29 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
+    fetch("http://ip-api.com/json/?fields=status,lat,lon")
+      .then((r) => r.json())
+      .then((d) => { if (d.status === "success") setIpCenter([d.lat, d.lon]); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (!isSignedIn) { setAppUser(null); return; }
     getToken().then((token) => {
       if (!token) return;
       api.users.me(token).then(setAppUser).catch(() => {});
     });
   }, [isSignedIn, getToken]);
+
+  useEffect(() => {
+    if (!isSignedIn || !clerkUser) return;
+    getToken().then((token) => {
+      if (!token) return;
+      const name = clerkUser.fullName;
+      const email = clerkUser.primaryEmailAddress?.emailAddress ?? null;
+      if (name || email) api.users.sync(token, { name, email }).catch(() => {});
+    });
+  }, [isSignedIn, clerkUser, getToken]);
 
   const locateMe = () => {
     navigator.geolocation?.getCurrentPosition(
@@ -108,6 +127,7 @@ export default function HomePage() {
         ref={mapRef}
         places={places}
         userLocation={userLocation}
+        ipCenter={ipCenter}
         onMarkerClick={(p) => { setSelected(p); setShowList(false); }}
         onBoundsChange={setBounds}
       />

@@ -1,13 +1,33 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, Query
+from geoalchemy2 import WKTElement
 from geoalchemy2.functions import ST_DWithin, ST_GeogFromText
+from pydantic import BaseModel
 from sqlalchemy import distinct, func, select
 from sqlalchemy.orm import Session
 
-from app.core.auth import require_admin
+from app.core.auth import require_admin, require_member
+from app.core.geocoding import geocode_address, lookup_place_from_url
 from app.db.session import get_db
 from app.models.place import Place
 from app.models.user import User
 from app.schemas.place import AreaOut, PlaceListOut, PlaceOut, PlaceUpdate
+
+
+class _LookupRequest(BaseModel):
+    url: str
+
+
+class _LookupResult(BaseModel):
+    name: str
+    address: str
+    state: str
+    lat: float | None
+    lng: float | None
+    category: str
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/places", tags=["places"])
 
@@ -126,6 +146,17 @@ def list_areas(state: str | None = None, db: Session = Depends(get_db)):
     return [AreaOut(area=a, sub_areas=s) for a, s in grouped.items()]
 
 
+@router.post("/lookup-url", response_model=_LookupResult)
+def lookup_place_url(
+    body: _LookupRequest,
+    _: User = Depends(require_member),
+):
+    result = lookup_place_from_url(body.url)
+    if not result:
+        raise HTTPException(status_code=422, detail="Could not extract place details from this URL")
+    return _LookupResult(**result)
+
+
 @router.get("/{place_id}", response_model=PlaceOut)
 def get_place(place_id: int, db: Session = Depends(get_db)):
     place = db.get(Place, place_id)
@@ -144,8 +175,24 @@ def update_place(
     place = db.get(Place, place_id)
     if not place:
         raise HTTPException(status_code=404, detail="Place not found")
-    for field, value in body.model_dump(exclude_unset=True).items():
+
+    update_data = body.model_dump(exclude_unset=True)
+    old_address = place.address
+
+    for field, value in update_data.items():
         setattr(place, field, value)
+
+    address_changed = "address" in update_data and update_data["address"] != old_address
+    if address_changed and place.address:
+        coords = geocode_address(place.address)
+        if coords:
+            lat, lng = coords
+            place.latitude = lat
+            place.longitude = lng
+            place.location = WKTElement(f"POINT({lng} {lat})", srid=4326)
+        else:
+            logger.warning("Could not geocode updated address for place %s: %r", place_id, place.address)
+
     db.commit()
     db.refresh(place)
     return place

@@ -3,11 +3,11 @@
 
 # Start all services
 up:
-	docker compose up
+	docker compose up --build
 
 # Start all services in background
 up-d:
-	docker compose up -d
+	docker compose up -d --build
 
 # Stop all services
 down:

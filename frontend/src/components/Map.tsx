@@ -24,6 +24,7 @@ export interface MapHandle {
 interface Props {
   places: Place[];
   userLocation: [number, number] | null;
+  ipCenter: [number, number] | null;
   onMarkerClick: (place: Place) => void;
   onBoundsChange: (bounds: Bounds) => void;
 }
@@ -35,7 +36,7 @@ type Callbacks = {
 };
 
 const Map = forwardRef<MapHandle, Props>(function Map(
-  { places, userLocation, onMarkerClick, onBoundsChange },
+  { places, userLocation, ipCenter, onMarkerClick, onBoundsChange },
   ref
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -44,6 +45,8 @@ const Map = forwardRef<MapHandle, Props>(function Map(
   const userMarkerRef = useRef<import("leaflet").Marker | null>(null);
   const cbRef = useRef<Callbacks>({ onMarkerClick, onBoundsChange });
   cbRef.current = { onMarkerClick, onBoundsChange };
+  const ipCenterRef = useRef<[number, number] | null>(ipCenter);
+  ipCenterRef.current = ipCenter;
 
   useImperativeHandle(ref, () => ({
     fitPlaces(ps) {
@@ -124,6 +127,11 @@ const Map = forwardRef<MapHandle, Props>(function Map(
       clusterRef.current = cluster;
       mapRef.current = map;
 
+      // Apply IP-based center if it resolved before the map finished initialising
+      if (ipCenterRef.current) {
+        map.setView(ipCenterRef.current, 10);
+      }
+
       const emitBounds = () => {
         const b = map.getBounds();
         cbRef.current.onBoundsChange({
@@ -167,6 +175,12 @@ const Map = forwardRef<MapHandle, Props>(function Map(
       cluster.addLayers(markers);
     });
   }, [places]);
+
+  // Apply IP-based center when it resolves after the map has already initialised
+  useEffect(() => {
+    if (!mapRef.current || !ipCenter) return;
+    mapRef.current.setView(ipCenter, 10);
+  }, [ipCenter]);
 
   // Pan to user location
   useEffect(() => {
