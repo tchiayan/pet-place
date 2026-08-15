@@ -256,16 +256,26 @@ export default function HomePage() {
                 <X className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
-            {selected.latitude && selected.longitude && (
+            <div className="mt-3 flex gap-2">
               <a
-                href={`https://www.google.com/maps/dir/?api=1&destination=${selected.latitude},${selected.longitude}`}
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([selected.name, selected.address].filter(Boolean).join(", "))}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-3 block w-full text-center bg-brand-600 hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-500 text-white text-sm font-medium py-2 rounded-xl transition-colors"
+                className="flex-1 text-center border border-gray-200 text-gray-700 hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-brand-500 text-sm font-medium py-2 rounded-xl transition-colors"
               >
-                Get Directions
+                View on Maps
               </a>
-            )}
+              {selected.latitude && selected.longitude && (
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${selected.latitude},${selected.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 text-center bg-brand-600 hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-500 text-white text-sm font-medium py-2 rounded-xl transition-colors"
+                >
+                  Get Directions
+                </a>
+              )}
+            </div>
           </div>
         </div>
       )}
