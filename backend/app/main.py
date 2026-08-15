@@ -1,4 +1,5 @@
-from fastapi import FastAPI
+import httpx
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, text
@@ -41,6 +42,20 @@ def seed_superadmin() -> None:
             db.commit()
     finally:
         db.close()
+
+
+@app.get("/api/geoip")
+async def geoip(request: Request):
+    client_ip = request.headers.get("X-Real-IP") or (request.client.host if request.client else "")
+    try:
+        async with httpx.AsyncClient(timeout=5) as client:
+            r = await client.get(f"http://ip-api.com/json/{client_ip}?fields=status,lat,lon")
+            data = r.json()
+            if data.get("status") == "success":
+                return {"status": "success", "lat": data["lat"], "lon": data["lon"]}
+    except Exception:
+        pass
+    return {"status": "fail"}
 
 
 @app.get("/health")

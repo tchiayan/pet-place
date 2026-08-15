@@ -88,19 +88,21 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    fetch("http://ip-api.com/json/?fields=status,lat,lon")
+    fetch(`${window.location.protocol}//ip-api.com/json/?fields=status,lat,lon`)
       .then((r) => r.json())
       .then((d) => { if (d.status === "success") setIpCenter([d.lat, d.lon]); })
       .catch(() => {});
   }, []);
 
   useEffect(() => {
-    if (!isSignedIn) { setAppUser(null); return; }
+    if (!isLoaded || !isSignedIn) { setAppUser(null); return; }
+    let cancelled = false;
     getToken().then((token) => {
-      if (!token) return;
-      api.users.me(token).then(setAppUser).catch(() => {});
+      if (cancelled || !token) return;
+      api.users.me(token).then((u) => { if (!cancelled) setAppUser(u); }).catch(() => {});
     });
-  }, [isSignedIn, getToken]);
+    return () => { cancelled = true; };
+  }, [isLoaded, isSignedIn, getToken]);
 
   useEffect(() => {
     if (!isSignedIn || !clerkUser) return;
@@ -254,16 +256,26 @@ export default function HomePage() {
                 <X className="w-5 h-5" aria-hidden="true" />
               </button>
             </div>
-            {selected.latitude && selected.longitude && (
+            <div className="mt-3 flex gap-2">
               <a
-                href={`https://www.google.com/maps/dir/?api=1&destination=${selected.latitude},${selected.longitude}`}
+                href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([selected.name, selected.address].filter(Boolean).join(", "))}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-3 block w-full text-center bg-brand-600 hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-500 text-white text-sm font-medium py-2 rounded-xl transition-colors"
+                className="flex-1 text-center border border-gray-200 text-gray-700 hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-brand-500 text-sm font-medium py-2 rounded-xl transition-colors"
               >
-                Get Directions
+                View on Maps
               </a>
-            )}
+              {selected.latitude && selected.longitude && (
+                <a
+                  href={`https://www.google.com/maps/dir/?api=1&destination=${selected.latitude},${selected.longitude}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 text-center bg-brand-600 hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-500 text-white text-sm font-medium py-2 rounded-xl transition-colors"
+                >
+                  Get Directions
+                </a>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -307,7 +319,7 @@ export default function HomePage() {
           )}
 
           <button
-            onClick={() => setShowList((v) => !v)}
+            onClick={() => { setShowList((v) => !v); setSelected(null); }}
             aria-expanded={showList}
             aria-label={showList ? "Collapse places list" : "Expand places list"}
             className="flex items-center gap-1.5 ml-auto text-sm text-gray-600 hover:text-gray-900 focus-visible:ring-2 focus-visible:ring-gray-400 rounded-lg px-2 py-1.5 transition-colors"
