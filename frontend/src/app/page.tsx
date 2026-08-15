@@ -88,9 +88,9 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    fetch(`${window.location.protocol}//ip-api.com/json/?fields=status,lat,lon`)
+    fetch(`https://ipapi.co/json/`)
       .then((r) => r.json())
-      .then((d) => { if (d.status === "success") setIpCenter([d.lat, d.lon]); })
+      .then((d) => { if (d.latitude && d.longitude) setIpCenter([d.latitude, d.longitude]); })
       .catch(() => {});
   }, []);
 
