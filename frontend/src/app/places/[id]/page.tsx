@@ -1,6 +1,7 @@
 import { ArrowLeft, MapPin, Sofa, UtensilsCrossed } from "lucide-react";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import PlaceAdminActions from "@/components/PlaceAdminActions";
 
 interface Props {
   params: { id: string };
@@ -66,6 +67,8 @@ export default async function PlaceDetailPage({ params }: Props) {
               Get Directions
             </a>
           )}
+
+          <PlaceAdminActions place={place} />
         </div>
       </div>
     </div>

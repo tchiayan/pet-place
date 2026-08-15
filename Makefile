@@ -3,11 +3,11 @@
 
 # Start all services
 up:
-	docker compose up
+	docker compose up --build
 
 # Start all services in background
 up-d:
-	docker compose up -d
+	docker compose up -d --build
 
 # Stop all services
 down:
@@ -48,9 +48,10 @@ prod-up:
 prod-down:
 	docker compose -f docker-compose.prod.yml --env-file .env.prod down
 
-# Pull latest images from GHCR and restart changed containers
+# Pull latest images from GHCR, apply migrations, and restart changed containers
 prod-pull:
 	docker compose -f docker-compose.prod.yml --env-file .env.prod pull
+	docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm backend alembic upgrade head
 	docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --no-build --remove-orphans
 	docker compose -f docker-compose.prod.yml --env-file .env.prod restart nginx
 	docker image prune -f

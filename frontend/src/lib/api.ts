@@ -74,7 +74,14 @@ export interface UserOut {
   id: number;
   clerk_user_id: string;
   role: string;
+  name: string | null;
+  email: string | null;
   created_at: string;
+}
+
+export interface UserListResponse {
+  items: UserOut[];
+  total: number;
 }
 
 export const api = {
@@ -99,6 +106,13 @@ export const api = {
 
     get: (id: number) => get<Place>(`/api/places/${id}`),
 
+    lookupUrl: (url: string, token: string) =>
+      post<{ name: string; address: string; state: string; lat: number | null; lng: number | null; category: string }>(
+        "/api/places/lookup-url",
+        { url },
+        token,
+      ),
+
     update: (id: number, body: Partial<Place>, token: string) =>
       put<Place>(`/api/places/${id}`, body, token),
 
@@ -115,6 +129,8 @@ export const api = {
 
   users: {
     me: (token: string) => get<UserOut>("/api/admin/users/me", undefined, token),
+    sync: (token: string, body: { name: string | null; email: string | null }) =>
+      patch<UserOut>("/api/admin/users/me", body, token),
   },
 
   admin: {
@@ -127,9 +143,30 @@ export const api = {
         patch<Submission>(`/api/admin/submissions/${id}/reject`, undefined, token),
     },
     users: {
-      list: (token: string) => get<UserOut[]>("/api/admin/users", undefined, token),
+      list: (token: string, params: { q?: string; skip?: number; limit?: number } = {}) =>
+        get<UserListResponse>("/api/admin/users", {
+          ...(params.q ? { q: params.q } : {}),
+          skip: String(params.skip ?? 0),
+          limit: String(params.limit ?? 10),
+        }, token),
       setRole: (clerkUserId: string, role: string, token: string) =>
         patch<UserOut>(`/api/admin/users/${clerkUserId}/role`, { role }, token),
+    },
+    places: {
+      geocodeStatus: (token: string) =>
+        get<{ running: boolean }>("/api/admin/places/geocode-missing/status", undefined, token),
+      geocodeMissing: async (token: string): Promise<{ queued: number; alreadyRunning: boolean }> => {
+        const res = await fetch(`${baseUrl()}/api/admin/places/geocode-missing`, {
+          method: "POST",
+          headers: authHeaders(token),
+          body: JSON.stringify({}),
+          cache: "no-store",
+        });
+        if (res.status === 409) return { queued: 0, alreadyRunning: true };
+        if (!res.ok) throw new Error(`API error ${res.status}`);
+        const data = await res.json();
+        return { ...data, alreadyRunning: false };
+      },
     },
   },
 };
