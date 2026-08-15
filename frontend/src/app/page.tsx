@@ -17,7 +17,7 @@ const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 const DEBOUNCE_MS = 400;
 
 export default function HomePage() {
-  const { getToken, isSignedIn } = useAuth();
+  const { getToken, isSignedIn, isLoaded } = useAuth();
   const [appUser, setAppUser] = useState<UserOut | null>(null);
   const [places, setPlaces] = useState<Place[]>([]);
   const [states, setStates] = useState<string[]>([]);
@@ -131,34 +131,38 @@ export default function HomePage() {
           />
         </div>
 
-        {/* Admin shortcut — only for admins */}
-        <SignedIn>
-          {appUser && ["admin", "superadmin"].includes(appUser.role) && (
-            <a
-              href="/admin"
-              className="bg-white shadow-md rounded-full p-2.5 border border-gray-200 hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-brand-500 shrink-0"
-              aria-label="Admin panel"
-            >
-              <ShieldCheck className="w-5 h-5 text-brand-600" aria-hidden="true" />
-            </a>
-          )}
-          {/* Clerk's UserButton renders as a circular avatar */}
-          <div className="shrink-0">
-            <UserButton afterSignOutUrl="/" />
-          </div>
-        </SignedIn>
+        {/* Avatar area — skeleton while Clerk resolves the session after OAuth redirect */}
+        {!isLoaded ? (
+          <div className="w-9 h-9 rounded-full bg-gray-100 border border-gray-200 shrink-0 animate-pulse" aria-hidden="true" />
+        ) : (
+          <>
+            <SignedIn>
+              {appUser && ["admin", "superadmin"].includes(appUser.role) && (
+                <a
+                  href="/admin"
+                  className="bg-white shadow-md rounded-full p-2.5 border border-gray-200 hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-brand-500 shrink-0"
+                  aria-label="Admin panel"
+                >
+                  <ShieldCheck className="w-5 h-5 text-brand-600" aria-hidden="true" />
+                </a>
+              )}
+              <div className="shrink-0">
+                <UserButton afterSignOutUrl="/" />
+              </div>
+            </SignedIn>
 
-        {/* Signed-out: circular avatar placeholder that opens sign-in */}
-        <SignedOut>
-          <SignInButton mode="modal">
-            <button
-              className="w-9 h-9 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-brand-500 shrink-0"
-              aria-label="Sign in"
-            >
-              <UserCircle2 className="w-6 h-6 text-gray-400" aria-hidden="true" />
-            </button>
-          </SignInButton>
-        </SignedOut>
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button
+                  className="w-9 h-9 rounded-full bg-white border border-gray-200 shadow-md flex items-center justify-center hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-brand-500 shrink-0"
+                  aria-label="Sign in"
+                >
+                  <UserCircle2 className="w-6 h-6 text-gray-400" aria-hidden="true" />
+                </button>
+              </SignInButton>
+            </SignedOut>
+          </>
+        )}
       </div>
 
       {/* ── Filter panel — positioned below the top bar ── */}
@@ -260,23 +264,27 @@ export default function HomePage() {
               : "max(0.75rem, env(safe-area-inset-bottom, 0.75rem))",
           }}
         >
-          <SignedIn>
-            <button
-              onClick={() => setShowSubmit(true)}
-              className="flex items-center gap-1.5 bg-brand-600 text-white rounded-full px-4 py-2 text-sm font-medium hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-500 transition-colors shrink-0"
-            >
-              <Plus className="w-4 h-4" aria-hidden="true" />
-              Add a Place
-            </button>
-          </SignedIn>
-          <SignedOut>
-            <SignInButton mode="modal">
-              <button className="flex items-center gap-1.5 border border-gray-200 text-gray-600 rounded-full px-4 py-2 text-sm font-medium hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-brand-500 transition-colors shrink-0">
-                <Plus className="w-4 h-4 text-gray-400" aria-hidden="true" />
-                Sign In to Add
-              </button>
-            </SignInButton>
-          </SignedOut>
+          {isLoaded && (
+            <>
+              <SignedIn>
+                <button
+                  onClick={() => setShowSubmit(true)}
+                  className="flex items-center gap-1.5 bg-brand-600 text-white rounded-full px-4 py-2 text-sm font-medium hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-500 transition-colors shrink-0"
+                >
+                  <Plus className="w-4 h-4" aria-hidden="true" />
+                  Add a Place
+                </button>
+              </SignedIn>
+              <SignedOut>
+                <SignInButton mode="modal">
+                  <button className="flex items-center gap-1.5 border border-gray-200 text-gray-600 rounded-full px-4 py-2 text-sm font-medium hover:bg-gray-50 focus-visible:ring-2 focus-visible:ring-brand-500 transition-colors shrink-0">
+                    <Plus className="w-4 h-4 text-gray-400" aria-hidden="true" />
+                    Sign In to Add
+                  </button>
+                </SignInButton>
+              </SignedOut>
+            </>
+          )}
 
           <button
             onClick={() => setShowList((v) => !v)}

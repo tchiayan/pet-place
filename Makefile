@@ -52,6 +52,7 @@ prod-down:
 prod-pull:
 	docker compose -f docker-compose.prod.yml --env-file .env.prod pull
 	docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --no-build --remove-orphans
+	docker compose -f docker-compose.prod.yml --env-file .env.prod restart nginx
 	docker image prune -f
 
 prod-migrate:

@@ -31,6 +31,16 @@ a,
   touch-action: manipulation;
 }
 
+/* Prevent auto-zoom on focused inputs on all iOS browsers (Safari, Chrome, Firefox).
+   WebKit zooms when font-size < 16px. !important is required because Tailwind's
+   text-sm class (0-1-0 specificity) would otherwise override this element selector
+   (0-0-1). The visual change from 14px → 16px is intentional and minimal. */
+input,
+textarea,
+select {
+  font-size: max(1rem, 1em) !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
